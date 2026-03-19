@@ -32,7 +32,7 @@ Tunneling allows your ESP32-S3 to receive webhooks from the internet even if it 
 
 ---
 
-## 🌐 External Server Setup (Caddy + socat)
+## ⇄ External Server Setup (Caddy + socat)
 
 To receive external webhooks, you need a public server (VPS) with a static IP. We will use **Caddy** for automated HTTPS/SSL and **socat** to bridge the traffic to the ESP32.
 

@@ -71,7 +71,7 @@ display: flex; flex-direction: column; overflow-y: auto;
 label { display: block; font-size: 0.75rem; color: #8b949e; margin-bottom: 4px; }
 input, select, textarea {
 width: 100%; background: #0d1117; border: 1px solid var(--node-border);
-color: white; padding: 8px; border-radius: 6px; margin-bottom: 12px; font-size: 0.85rem;
+color: white; padding: 8px; border-radius: 6px; margin-bottom: 12px; font-size: 0.85rem; box-sizing: border-box;
 }
 .actions { margin-top: auto; display: flex; flex-direction: column; gap: 8px; }
 button {
@@ -143,6 +143,25 @@ border: 1px solid #30363d; z-index: 10;
 }
 .node-clone-btn:hover { background: var(--accent); color: white; border-color: var(--accent); }
 .sidebar button { font-family: 'Segoe UI', system-ui, sans-serif; text-transform: none; letter-spacing: 0; font-size: 0.8rem; }
+.copyable-url {
+background: rgba(35, 134, 54, 0.1);
+border: 1px dashed #238636;
+color: #7ee787;
+padding: 8px;
+border-radius: 6px;
+font-size: 0.75rem;
+cursor: pointer;
+word-break: break-all;
+transition: 0.2s;
+margin-bottom: 12px;
+}
+.copyable-url:active { transform: scale(0.98); }
+@keyframes spin { 100% { transform:rotate(360deg); } }
+.spinner {
+  width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.2);
+  border-top-color: var(--accent); border-radius: 50%;
+  animation: spin 0.8s linear infinite; display: inline-block; vertical-align: middle;
+}
 </style>
 </head>
 <body>
@@ -164,7 +183,7 @@ border: 1px solid #30363d; z-index: 10;
 <hr style="border:0; border-top:1px solid var(--node-border); margin:10px 0">
 <label style="color:var(--accent); font-weight:bold">Flow Control: <span id="current-flow-display" style="color:white"></span></label>
 <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:5px; margin-top:5px">
-<button class="btn-primary" style="padding:10px 0" onclick="saveFlow()" title="Save Flow">💾</button>
+<button class="btn-primary" style="padding:10px 0" onclick="saveFlow()" title="Save Flow">🖫</button>
 <button class="btn-secondary" style="background:#238636; padding:10px 0" onclick="runFlow()" title="Run Flow">▶</button>
 <button class="btn-danger" style="padding:10px 0; background:#da3633" onclick="stopFlow()" title="Stop Flow">⏹</button>
 <button class="btn-danger" style="padding:10px 0" onclick="deleteCurrentFlow()" title="Delete Flow">🗑</button>
@@ -177,12 +196,15 @@ border: 1px solid #30363d; z-index: 10;
 </div>
 <div id="flow-mgmt-list" style="overflow-y:auto; max-height:250px"></div>
 <hr style="border:0; border-top:1px solid var(--node-border); margin:10px 0">
-<button class="btn-secondary" style="background:#4f46e5" onclick="openWifiConfig()">⚙  WiFi</button>
+<button class="btn-secondary" style="background:#4f46e5" onclick="openWifiConfig()">⚙ WiFi</button>
 <button class="btn-secondary" style="background:#0e7c42; margin-top:5px" onclick="openOtaPanel()">🜁 Update</button>
 <button class="btn-secondary" style="margin-top:5px" onclick="openTunnelPanel()">↩ Webhook Tunnel</button>
-<button class="btn-secondary" style="margin-top:5px; background:var(--table); color:#000" onclick="openTablesPanel()">🗃️ Tables</button>
+<button class="btn-secondary" style="margin-top:5px; background:var(--table); color:#000" onclick="openTablesPanel()">🗐 Tables</button>
 </div>
 <div id="top-bar">
+<div id="loader" style="display:none; align-items:center; margin-right:auto; padding-left:15px; color:var(--accent); font-weight:bold; gap:8px">
+  <div class="spinner"></div><span>Loading...</span>
+</div>
 <div class="stat-group" title="CPU and Temperature">
 <div class="stat-badge" title="CPU Clock Frequency"><span id="stat-cpu">-</span>MHz</div>
 <div class="stat-badge" title="ESP32 Internal Temperature"><span id="stat-temp">-</span>°C</div>
@@ -203,7 +225,7 @@ border: 1px solid #30363d; z-index: 10;
 <div class="stat-badge" title="Total System Uptime"><span id="stat-uptime">-</span>s</div>
 </div>
 </div>
-<div id="wifi-warning">⚠️ Running in AP Mode. Please <a href="#" onclick="openWifiConfig()" style="color:white; text-decoration:underline">configure WiFi</a> to enable Internet access.</div>
+<div id="wifi-warning">⚠ Running in AP Mode. Please <a href="#" onclick="openWifiConfig()" style="color:white; text-decoration:underline">configure WiFi</a> to enable Internet access.</div>
 <div id="canvas">
 <div id="canvas-inner" style="position:absolute; top:0; left:0; width:0; height:0; overflow:visible">
 <svg id="svg-connections" style="overflow:visible"></svg>
@@ -257,7 +279,7 @@ New version available: <strong id="ota-remote-ver"></strong>
 </div>
 
 <div id="tables-panel" class="config-overlay">
-<h2 style="margin-top:0">🗃️ Manage Tables</h2>
+<h2 style="margin-top:0">🗐 Manage Tables</h2>
 <div style="display:flex; gap:5px; margin-bottom:15px">
 <input id="new-table-name" placeholder="New Table Name" style="margin:0; font-size:0.8rem; flex:1">
 <button class="btn-primary" onclick="createTable()" style="padding:8px">+</button>
@@ -292,8 +314,44 @@ Proxies incoming HTTP requests from a public relay server.
 </div>
 </div>
 <script>
+function copyToClipboard(text, el) {
+const ta = document.createElement('textarea');
+ta.value = text;
+ta.setAttribute('readonly', '');
+ta.style.position = 'fixed';
+ta.style.left = '-9999px';
+ta.style.top = '0';
+document.body.appendChild(ta);
+ta.select();
+ta.setSelectionRange(0, 99999);
+try {
+document.execCommand('copy');
+const originalText = el.innerText;
+const originalBorder = el.style.borderStyle;
+el.innerText = '✓ Copied!';
+el.style.borderStyle = 'solid';
+setTimeout(() => {
+el.innerText = originalText;
+el.style.borderStyle = originalBorder;
+}, 2000);
+} catch (err) {
+log('Failed to copy: ' + err);
+}
+document.body.removeChild(ta);
+}
 function isAnyModalOpen() {
   return document.querySelector('.config-overlay.open') !== null;
+}
+async function fetchWithLoader(url, options = {}) {
+  const loader = document.getElementById('loader');
+  if(loader) loader.style.display = 'flex';
+  try {
+    const res = await window.fetch(url, options);
+    return res;
+  } catch(e) { throw e; }
+  finally {
+    if(loader) loader.style.display = 'none';
+  }
 }
 // --- Tables Management ---
 async function openTablesPanel() {
@@ -302,13 +360,14 @@ document.getElementById('tables-panel').classList.add('open');
 await loadTablesList();
 }
 async function loadTablesList() {
+document.getElementById('tables-list').innerHTML = '<div style="text-align:center; padding:15px"><div class="spinner"></div></div>';
 try {
-const res = await fetch('/api/tables');
+const res = await fetchWithLoader('/api/tables');
 const list = await res.json();
 let html = '';
 list.forEach(t => {
 html += `<div class="flow-mgmt-item">
-<span onclick="viewTableData('${t.name}')">🗃️ ${t.name} <small>(${(t.size/1024).toFixed(1)}kb)</small></span>
+<span onclick="viewTableData('${t.name}')">🗏 ${t.name} <small>(${(t.size/1024).toFixed(1)}kb)</small></span>
 <div style="display:flex; gap:5px">
 <button class="btn-danger" style="padding:4px 8px; font-size:0.7rem; background:#da3633" onclick="deleteTable('${t.name}')">Del</button>
 </div></div>`;
@@ -320,18 +379,18 @@ document.getElementById('table-data-view').value = '';
 async function createTable() {
 const val = document.getElementById('new-table-name').value.trim();
 if (!val) return;
-await fetch(`/api/table?name=${val}`, { method: 'POST' });
+await fetchWithLoader(`/api/table?name=${val}`, { method: 'POST' });
 document.getElementById('new-table-name').value = '';
 await loadTablesList();
 }
 async function deleteTable(name) {
 if (!confirm(`Delete table ${name}? All data will be lost.`)) return;
-await fetch(`/api/table?name=${name}`, { method: 'DELETE' });
+await fetchWithLoader(`/api/table?name=${name}`, { method: 'DELETE' });
 await loadTablesList();
 }
 async function viewTableData(name) {
 try {
-const res = await fetch(`/api/table/data?name=${name}`);
+const res = await fetchWithLoader(`/api/table/data?name=${name}`);
 const data = await res.json();
 document.getElementById('table-data-view').value = JSON.stringify(data, null, 2);
 } catch(e) { document.getElementById('table-data-view').value = "Error reading data."; }
@@ -364,7 +423,7 @@ window.onmousedown = (e) => {
 };
 async function init() {
 try {
-const wifiStatus = await fetch('/api/status');
+const wifiStatus = await fetchWithLoader('/api/status');
 const status = await wifiStatus.json();
 wifiData = { ssid: status.ssid, pass: status.pass };
 if(status.apMode) {
@@ -414,8 +473,8 @@ if (badge) badge.innerText = `${data.current}/${data.total}`;
 }
 }
 if (data.event === 'finished' || data.event === 'stopped') {
-if(data.event === 'stopped') log("⚠️ Flow execution stopped by user.");
-else log("✅ Flow execution finished.");
+if(data.event === 'stopped') log("⚠ Flow execution stopped by user.");
+else log("🗹 Flow execution finished.");
 setTimeout(() => {
 document.querySelectorAll('.node').forEach(n => n.classList.remove('executing'));
 document.querySelectorAll('.loop-counter').forEach(el => el.innerText = '');
@@ -423,8 +482,8 @@ document.querySelectorAll('.loop-counter').forEach(el => el.innerText = '');
 }
 if (data.event === 'ota') {
   const statusEl = document.getElementById('ota-status');
-  if (data.status === 'downloading') statusEl.innerText = '⬇️ Downloading firmware...';
-  else if (data.status === 'success') statusEl.innerText = '✅ Update successful! Rebooting...';
+  if (data.status === 'downloading') statusEl.innerHTML = '<div class="spinner"></div> ⇘ Downloading firmware...';
+  else if (data.status === 'success') statusEl.innerText = '🗹 Update successful! Rebooting...';
 }
 if (data.event === 'log') {
   log(data.msg);
@@ -435,7 +494,7 @@ ws.onerror = () => {};
 ws.onclose = () => setTimeout(initWebSocket, 2000);
 }
 async function refreshFlowList() {
-const res = await fetch('/api/flows');
+const res = await fetchWithLoader('/api/flows');
 const data = await res.json();
 flowList = data;
 const display = document.getElementById('current-flow-display');
@@ -456,7 +515,7 @@ ${f.enabled?'ON':'OFF'}
 if(!flowList.find(f => f.name === currentFlow) && flowList.length > 0) currentFlow = flowList[0].name;
 }
 async function toggleFlowEnabled(name, status) {
-await fetch(`/api/flow/status?name=${name}&enabled=${status}`, { method: 'POST' });
+await fetchWithLoader(`/api/flow/status?name=${name}&enabled=${status}`, { method: 'POST' });
 log(`Flow ${name} ${status ? 'enabled' : 'disabled'}`);
 refreshFlowList();
 }
@@ -465,7 +524,7 @@ currentFlow = name;
 log(`Opening flow: ${name}`);
 refreshFlowList(); // Update UI highlighting immediately
 try {
-const res = await fetch(`/api/flow?name=${name}`);
+const res = await fetchWithLoader(`/api/flow?name=${name}`);
 const data = await res.json();
 nodes = data.nodes || [];
 connections = data.connections || [];
@@ -524,7 +583,7 @@ log(`Duplicated ${id} to ${newId}`);
 }
 function addNode(type) {
 if (type === 'start' && nodes.some(n => n.type === 'start')) {
-log("⚠️ Only one Start node allowed per flow.");
+log("⚠ Only one Start node allowed per flow.");
 return;
 }
 const id = type + '_' + Math.random().toString(36).substr(2, 5);
@@ -556,11 +615,11 @@ http: '⇄ <b>HTTP</b> — GET/POST. Use <code>{{id.key}}</code> in URL/Body. Re
 condition: '⎇ <b>Condition</b> — Compare values (==, !=, >). Routes to 1/0.',
 delay: '⏱ <b>Delay</b> — Pause in ms (1000=1s).',
 transform: 'ƒ <b>Transform</b> — <code>SET key = {{var}} + 10</code>. Math: + - * /',
-loop: '⟳ <b>Loop</b> — Repeat N times. Index: <code>{{id.index}}</code>. Ports: ⟳/🞪.',
+loop: '⟳ <b>Loop</b> — Repeat N times. Index: <code>{{id.index}}</code>. Ports: 🞪/⟳.',
 telegram: '✉ <b>Telegram</b> — sendMessage/sendPhoto via Bot API. Use <code>{{id.key}}</code>.',
 read_table: '⇱ <b>Read Table</b> — Read a JSON table from local storage. Output: <code>data</code> (array), <code>count</code>.',
 write_table: '⇲ <b>Write Table</b> — Append or overwrite a row in a table. Use JSON for <code>data</code>.',
-loop_array: '⊟ <b>Loop Array</b> — Iterate over an array (e.g. <code>{{read_table_1.data}}</code>). Output: <code>item</code>, <code>index</code>. Ports: ⟳/🞪.',
+loop_array: '⊟ <b>Loop Array</b> — Iterate over an array (e.g. <code>{{read_table_1.data}}</code>). Output: <code>item</code>, <code>index</code>. Ports: 🞪/⟳.',
 break_loop: '⎋ <b>Break Loop</b> — Interrupts the specified loop and continues from its 🞪 port.',
 webhook: '↩ <b>Webhook Tunnel</b> — Secure reverse tunnel for receiving external triggers. Supports custom paths, HTTP/HTTPS, and automatic domain mapping.'
 };
@@ -623,11 +682,11 @@ el.innerHTML += `
 el.innerHTML += `<div class="node-label">COUNT: ${node.config.count}</div>`;
 el.innerHTML += `<div class="port in" onmouseup="endConnect('${node.id}', 'in')"></div>`;
 el.innerHTML += `
-<div class="port out" style="top:14px" onmousedown="startConnect(event, '${node.id}', 'body')">
-<span class="port-label">⟳</span>
-</div>
-<div class="port out" style="top:33px" onmousedown="startConnect(event, '${node.id}', 'done')">
+<div class="port out" style="top:14px" onmousedown="startConnect(event, '${node.id}', 'done')">
 <span class="port-label">🞪</span>
+</div>
+<div class="port out" style="top:33px" onmousedown="startConnect(event, '${node.id}', 'body')">
+<span class="port-label">⟳</span>
 </div>
 <div style="font-size:0.6rem; color:var(--accent); text-align:center; font-weight:bold" class="loop-counter"></div>
 `;
@@ -635,11 +694,11 @@ el.innerHTML += `
 el.innerHTML += `<div class="node-label">ARRAY LOOP</div>`;
 el.innerHTML += `<div class="port in" onmouseup="endConnect('${node.id}', 'in')"></div>`;
 el.innerHTML += `
-<div class="port out" style="top:14px" onmousedown="startConnect(event, '${node.id}', 'body')">
-<span class="port-label">⟳</span>
-</div>
-<div class="port out" style="top:33px" onmousedown="startConnect(event, '${node.id}', 'done')">
+<div class="port out" style="top:14px" onmousedown="startConnect(event, '${node.id}', 'done')">
 <span class="port-label">🞪</span>
+</div>
+<div class="port out" style="top:33px" onmousedown="startConnect(event, '${node.id}', 'body')">
+<span class="port-label">⟳</span>
 </div>
 <div style="font-size:0.6rem; color:var(--accent); text-align:center; font-weight:bold" class="loop-counter"></div>
 `;
@@ -680,7 +739,7 @@ const svg = document.getElementById('svg-connections');
 const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
 let yOffsetFrom = 14; 
 if (from.type === 'condition' || from.type === 'loop' || from.type === 'loop_array') {
-yOffsetFrom = (conn.fromPort === 'true' || conn.fromPort === 'body') ? 14 : 33;
+yOffsetFrom = (conn.fromPort === 'true' || conn.fromPort === 'done') ? 14 : 33;
 }
 const x1 = from.x + 185, y1 = from.y + yOffsetFrom + 4 + 3; // adjusted center point based on node width and port dimension
 const x2 = to.x + 6 + 6, y2 = to.y + 14 + 4 + 3;
@@ -753,7 +812,12 @@ panel.classList.add('open');
 document.getElementById('cfg-node-title').innerText = `Config: ${node.id}`;
 help.innerHTML = getNodeHelp(node.type);
 let html = '';
-for (let key in node.config) {
+let keys = Object.keys(node.config);
+if (node.type === 'start') {
+  const sOrder = ['mode', 'schedType', 'cron', 'interval', 'immediate', 'anchor', 'path'];
+  keys.sort((a,b) => (sOrder.indexOf(a) === -1 ? 99 : sOrder.indexOf(a)) - (sOrder.indexOf(b) === -1 ? 99 : sOrder.indexOf(b)));
+}
+for (let key of keys) {
 if (key === 'mode' && node.type === 'start') {
 html += `<label>Mode</label><select id="cfg-${key}" onchange="updateStartMode('${node.id}', this.value)">
 <option value="manual" ${node.config[key]=='manual'?'selected':''}>Manual</option>
@@ -763,7 +827,7 @@ html += `<label>Mode</label><select id="cfg-${key}" onchange="updateStartMode('$
 if (node.config.mode === 'webhook') {
   const p = node.config.path || node.id;
   const pub = `${tunnelProtocolGlobal}://${tunnelHostGlobal}/webhook/${p}`;
-  html += `<label>Webhook URL (from tunnel settings)</label><input value="${pub}" readonly style="background:rgba(35,134,54,0.2); color:#7ee787; border-color:#238636; font-size:0.75rem">`;
+  html += `<label>Webhook URL (from tunnel settings)</label><div class="copyable-url" onclick="copyToClipboard('${pub}', this)" title="Click to copy">${pub}</div>`;
 }
 } else if (key === 'path' && node.type === 'start') {
   if (node.config.mode === 'webhook') {
@@ -911,7 +975,7 @@ log(`Deleted node ${selectedNodeId}`);
 }
 async function saveFlow() {
 try {
-await fetch(`/api/flow?name=${currentFlow}`, {
+await fetchWithLoader(`/api/flow?name=${currentFlow}`, {
 method: 'POST',
 body: JSON.stringify({ nodes, connections, pan: {x: panX, y: panY} })
 });
@@ -920,19 +984,19 @@ log(`Flow ${currentFlow} saved.`);
 }
 async function deleteCurrentFlow() {
 if(!confirm(`Delete flow "${currentFlow}"?`)) return;
-await fetch(`/api/flow?name=${currentFlow}`, { method: 'DELETE' });
+await fetchWithLoader(`/api/flow?name=${currentFlow}`, { method: 'DELETE' });
 currentFlow = "default";
 await refreshFlowList();
 await openFlow(currentFlow);
 }
 async function runFlow() {
 log(`Triggering flow ${currentFlow}...`);
-await fetch(`/api/run?name=${currentFlow}`, { method: 'POST' });
+await fetchWithLoader(`/api/run?name=${currentFlow}`, { method: 'POST' });
 }
 async function stopFlow() {
 log("Sending stop request...");
 document.querySelectorAll('.node').forEach(n => n.classList.remove('executing'));
-await fetch('/api/stop', { method: 'POST' });
+await fetchWithLoader('/api/stop', { method: 'POST' });
 }
 function openWifiConfig() {
 if (isAnyModalOpen()) return;
@@ -945,7 +1009,7 @@ const ssid = document.getElementById('wifi-ssid').value;
 const pass = document.getElementById('wifi-pass').value;
 if(!ssid) return alert("SSID required");
 log("Saving WiFi config...");
-await fetch('/api/wifi', {
+await fetchWithLoader('/api/wifi', {
 method: 'POST',
 body: JSON.stringify({ ssid, pass })
 });
@@ -958,7 +1022,7 @@ let tunnelPortGlobal = 9000;
 let tunnelProtocolGlobal = "http";
 async function initTunnelGlobals() {
 try {
-const res = await fetch('/api/tunnel/config');
+const res = await fetchWithLoader('/api/tunnel/config');
 const data = await res.json();
 tunnelEnabledGlobal = data.enabled;
 tunnelHostGlobal = data.host;
@@ -980,7 +1044,7 @@ const enabled = document.getElementById('tunnel-enabled').checked;
 const protocol = document.getElementById('tunnel-protocol').value;
 const host = document.getElementById('tunnel-host').value.trim();
 const port = parseInt(document.getElementById('tunnel-port').value) || 80;
-await fetch('/api/tunnel/config', {
+await fetchWithLoader('/api/tunnel/config', {
 method: 'POST',
 body: JSON.stringify({ enabled, protocol, host, port })
 });
@@ -993,7 +1057,7 @@ if (isAnyModalOpen()) return;
 document.getElementById('ota-update-section').style.display = 'none';
 document.getElementById('ota-status').innerText = '';
 try {
-const res = await fetch('/api/ota/config');
+const res = await fetchWithLoader('/api/ota/config');
 const data = await res.json();
 document.getElementById('ota-url').value = data.url || '';
 document.getElementById('ota-current-ver').innerText = data.version || '-';
@@ -1002,7 +1066,7 @@ document.getElementById('ota-panel').classList.add('open');
 }
 async function saveOtaUrl() {
 const url = document.getElementById('ota-url').value.trim();
-await fetch('/api/ota/config', {
+await fetchWithLoader('/api/ota/config', {
 method: 'POST',
 body: JSON.stringify({ url })
 });
@@ -1011,13 +1075,13 @@ document.getElementById('ota-status').innerText = 'URL saved.';
 }
 async function checkOta() {
 const statusEl = document.getElementById('ota-status');
-statusEl.innerText = 'Checking...';
+statusEl.innerHTML = '<div class="spinner"></div> Checking...';
 document.getElementById('ota-update-section').style.display = 'none';
 try {
-const res = await fetch('/api/ota/check');
+const res = await fetchWithLoader('/api/ota/check');
 const data = await res.json();
 if (data.status === 'error') {
-statusEl.innerText = '❌ ' + data.message;
+statusEl.innerText = '🗙 ' + data.message;
 return;
 }
 statusEl.innerText = `Current: ${data.current} | Remote: ${data.remote}`;
@@ -1027,11 +1091,11 @@ document.getElementById('ota-update-section').style.display = 'block';
 otaFirmwareUrl = data.firmwareUrl;
 log('Update available: ' + data.remote);
 } else {
-statusEl.innerText = '✅ Firmware is up to date (' + data.current + ')';
+statusEl.innerText = '🗹 Firmware is up to date (' + data.current + ')';
 log('Firmware is up to date.');
 }
 } catch(e) {
-statusEl.innerText = '❌ Connection error';
+statusEl.innerText = '🗙 Connection error';
 }
 }
 async function performOta() {
@@ -1039,26 +1103,26 @@ if (!otaFirmwareUrl) return;
 const btn = document.getElementById('ota-update-btn');
 btn.disabled = true;
 btn.innerText = 'Updating...';
-document.getElementById('ota-status').innerText = '⬇️ Downloading firmware...';
+document.getElementById('ota-status').innerHTML = '<div class="spinner"></div> ⇘ Downloading firmware...';
 log('Starting OTA update from: ' + otaFirmwareUrl);
 try {
-const res = await fetch('/api/ota/update', {
+const res = await fetchWithLoader('/api/ota/update', {
 method: 'POST',
 body: JSON.stringify({ url: otaFirmwareUrl })
 });
 const data = await res.json();
 if (data.status === 'ok') {
-document.getElementById('ota-status').innerText = '✅ ' + data.message;
+document.getElementById('ota-status').innerText = '🗹 ' + data.message;
 log('OTA update successful! Rebooting...');
 setTimeout(() => location.reload(), 5000);
 } else {
-document.getElementById('ota-status').innerText = '❌ ' + data.message;
+document.getElementById('ota-status').innerText = '🗙 ' + data.message;
 log('OTA failed: ' + data.message);
 btn.disabled = false;
 btn.innerText = 'Update Now';
 }
 } catch(e) {
-document.getElementById('ota-status').innerText = '❌ Connection lost (device may be rebooting)';
+document.getElementById('ota-status').innerText = '🗙 Connection lost (device may be rebooting)';
 log('Connection lost during OTA — device may be rebooting.');
 setTimeout(() => location.reload(), 10000);
 }

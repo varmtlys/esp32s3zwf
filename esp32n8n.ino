@@ -93,7 +93,7 @@ void setup() {
   loadTunnelConfig();
 
   configTime(0, 0, "pool.ntp.org", "time.google.com");
-  broadcastEvent("{\"event\":\"log\",\"msg\":\"🕒 NTP: Syncing time...\"}");
+  broadcastEvent("{\"event\":\"log\",\"msg\":\"⏱ NTP: Syncing time...\"}");
 
   setupRoutes();
   server.begin();
@@ -116,7 +116,7 @@ void loop() {
       if (millis() - lastTunnelConnect > 1000) {
         lastTunnelConnect = millis();
         if (tunnelClient.connect(tunnelHost.c_str(), tunnelPort)) {
-          broadcastEvent("{\"event\":\"log\",\"msg\":\"✅ Tunnel connected: " + tunnelHost + "\"}");
+          broadcastEvent("{\"event\":\"log\",\"msg\":\"🗹 Tunnel connected: " + tunnelHost + "\"}");
         }
       }
     } else {
@@ -125,7 +125,7 @@ void loop() {
         if (!localClient.connected()) {
           String connectIP = "127.0.0.1";
           localClient.connect(connectIP.c_str(), 80);
-          broadcastEvent("{\"event\":\"log\",\"msg\":\"🔄 Tunnel passing data to local (" + connectIP + ")\"}");
+          broadcastEvent("{\"event\":\"log\",\"msg\":\"🗘 Tunnel passing data to local (" + connectIP + ")\"}");
         }
         uint8_t buf[1024];
         int len = tunnelClient.read(buf, 1024);
@@ -144,7 +144,7 @@ void loop() {
       
       if (!tunnelClient.connected() && localClient.connected()) {
         localClient.stop();
-        broadcastEvent("{\"event\":\"log\",\"msg\":\"ℹ️ Tunnel closed.\"}");
+        broadcastEvent("{\"event\":\"log\",\"msg\":\"⚠ Tunnel closed.\"}");
       }
     }
   }

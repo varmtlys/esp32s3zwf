@@ -294,7 +294,7 @@ void setupRoutes() {
 
   server.onNotFound([]() {
     String uri = server.uri();
-    broadcastEvent("{\"event\":\"log\",\"msg\":\"🔍 Server: Incoming request " + uri + "\"}");
+    broadcastEvent("{\"event\":\"log\",\"msg\":\"🔍︎ Server: Incoming request " + uri + "\"}");
     
     bool isDirectWebhook = uri.startsWith("/webhook/");
     
@@ -308,7 +308,7 @@ void setupRoutes() {
 
       int flowStart = 9;
       String triggerPath = normalize(uri.substring(flowStart));
-      broadcastEvent("{\"event\":\"log\",\"msg\":\"🔔 Webhook logic: matching normalized path [" + triggerPath + "]\"}");
+      broadcastEvent("{\"event\":\"log\",\"msg\":\"🕭 Webhook logic: matching normalized path [" + triggerPath + "]\"}");
       
       File root = LittleFS.open("/flows");
       File file = root.openNextFile();
@@ -334,7 +334,7 @@ void setupRoutes() {
                     String nodeId = cStr(n, "id");
                     if (triggerPath == nodeId || (nodePath.length() > 0 && triggerPath == nodePath) || (nodePath.length() == 0 && triggerPath == "")) {
                       if (cBool(cfg, "enabled")) {
-                        broadcastEvent("{\"event\":\"log\",\"msg\":\"🚀 Match! Queuing " + flowName + " (Node: " + nodeId + ")\"}");
+                        broadcastEvent("{\"event\":\"log\",\"msg\":\"◎ Match! Queuing " + flowName + " (Node: " + nodeId + ")\"}");
                         
                         WebhookRequest req;
                         req.flowName = flowName;
@@ -343,7 +343,7 @@ void setupRoutes() {
                         webhookQueue.push_back(req);
                         matchCount++;
                       } else {
-                        broadcastEvent("{\"event\":\"log\",\"msg\":\"⚠️ " + flowName + " matches but is DISABLED.\"}");
+                        broadcastEvent("{\"event\":\"log\",\"msg\":\"⚠ " + flowName + " matches but is DISABLED.\"}");
                       }
                     }
                   }
@@ -357,7 +357,7 @@ void setupRoutes() {
       if (matchCount > 0) {
         server.send(200, "text/plain", "OK Triggered " + String(matchCount) + " flows");
       } else {
-        broadcastEvent("{\"event\":\"log\",\"msg\":\"❓ No match found for " + triggerPath + " (searched " + String(flowCount) + " files)\"}");
+        broadcastEvent("{\"event\":\"log\",\"msg\":\"? No match found for " + triggerPath + " (searched " + String(flowCount) + " files)\"}");
         server.send(404, "text/plain", "Not Found");
       }
       return;
@@ -366,7 +366,7 @@ void setupRoutes() {
       server.sendHeader("Location", String("http://") + WiFi.softAPIP().toString() + "/", true);
       server.send(302, "text/plain", "");
     } else {
-      broadcastEvent("{\"event\":\"log\",\"msg\":\"❓ 404: " + uri + "\"}");
+      broadcastEvent("{\"event\":\"log\",\"msg\":\"? 404: " + uri + "\"}");
       server.send(404, "text/plain", "Not Found");
     }
   });

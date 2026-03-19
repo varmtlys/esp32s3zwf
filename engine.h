@@ -122,11 +122,11 @@ void startFlowFromNodes(std::vector<String> queue, String flowName = "") {
   cJSON* nodes = cGet(flowDoc, "nodes");
   cJSON* conns = cGet(flowDoc, "connections");
   
-  broadcastEvent("{\"event\":\"log\",\"msg\":\"⚙️ Engine: Starting execution for " + flowName + " (" + String(queue.size()) + " entry points)\"}");
+  broadcastEvent("{\"event\":\"log\",\"msg\":\"⚙ Engine: Starting execution for " + flowName + " (" + String(queue.size()) + " entry points)\"}");
 
   while (queue.size() > 0 && safetyCounter < 1000) {
     if (stopExecution) {
-      broadcastEvent("{\"event\":\"log\",\"msg\":\"⚠️ Engine: Execution STOPPED by user flag.\"}");
+      broadcastEvent("{\"event\":\"log\",\"msg\":\"⚠ Engine: Execution STOPPED by user flag.\"}");
       broadcastEvent("{\"event\":\"stopped\"}");
       break;
     }
@@ -140,7 +140,7 @@ void startFlowFromNodes(std::vector<String> queue, String flowName = "") {
       if (strcmp(cStr(item, "id"), nodeId.c_str()) == 0) { node = item; break; }
     }
     if (!node) {
-      broadcastEvent("{\"event\":\"log\",\"msg\":\"⚠️ Engine: Node " + nodeId + " not found in flow definition.\"}");
+      broadcastEvent("{\"event\":\"log\",\"msg\":\"⚠ Engine: Node " + nodeId + " not found in flow definition.\"}");
       continue;
     }
 
@@ -148,14 +148,14 @@ void startFlowFromNodes(std::vector<String> queue, String flowName = "") {
     cJSON* config = cGet(node, "config");
     
     broadcastEvent("{\"event\":\"executing\",\"nodeId\":\"" + nodeId + "\"}");
-    broadcastEvent("{\"event\":\"log\",\"msg\":\"▶️ Executing: " + nodeId + " [" + type + "]\"}");
+    broadcastEvent("{\"event\":\"log\",\"msg\":\"► Executing: " + nodeId + " [" + type + "]\"}");
 
     String branchToTake = "out";
 
     if (type == "http") {
       HTTPClient http;
       String url = resolveVariables(String(cStr(config, "url")), true);
-      broadcastEvent("{\"event\":\"log\",\"msg\":\"🌐 HTTP Request to: " + url + "\"}");
+      broadcastEvent("{\"event\":\"log\",\"msg\":\"⇄ HTTP Request to: " + url + "\"}");
       http.begin(url);
       http.setTimeout(10000); 
       String method = cStr(config, "method", "GET");
@@ -187,7 +187,7 @@ void startFlowFromNodes(std::vector<String> queue, String flowName = "") {
       else if (method == "DELETE") code = http.sendRequest("DELETE", bodyStr);
       else code = http.GET();
       
-      broadcastEvent("{\"event\":\"log\",\"msg\":\"🌐 HTTP Response Code: " + String(code) + "\"}");
+      broadcastEvent("{\"event\":\"log\",\"msg\":\"⇄ HTTP Response Code: " + String(code) + "\"}");
 
       cJSON* ctx = cGet(contextDoc, nodeId.c_str());
       if (!ctx) { ctx = cJSON_CreateObject(); cJSON_AddItemToObject(contextDoc, nodeId.c_str(), ctx); }
@@ -329,7 +329,7 @@ void startFlowFromNodes(std::vector<String> queue, String flowName = "") {
         }
       }
     }
-    if (nextCount > 0) broadcastEvent("{\"event\":\"log\",\"msg\":\"➡️ Node " + nodeId + " finished, triggered " + String(nextCount) + " next nodes.\"}");
+    if (nextCount > 0) broadcastEvent("{\"event\":\"log\",\"msg\":\"➔ Node " + nodeId + " finished, triggered " + String(nextCount) + " next nodes.\"}");
     else broadcastEvent("{\"event\":\"log\",\"msg\":\"⏹ Node " + nodeId + " finished, no further connections.\"}");
     
     yield();
@@ -353,7 +353,7 @@ void startFlowFromNodes(std::vector<String> queue, String flowName = "") {
   }
 
   broadcastEvent("{\"event\":\"finished\"}");
-  broadcastEvent("{\"event\":\"log\",\"msg\":\"✅ Engine: Flow " + flowName + " execution FINISHED.\"}");
+  broadcastEvent("{\"event\":\"log\",\"msg\":\"🗹 Engine: Flow " + flowName + " execution FINISHED.\"}");
 }
 
 void startFlowFromTrigger(bool isSchedule = false, String flowName = "") {
@@ -441,7 +441,7 @@ void processWebhookQueue() {
   WebhookRequest req = webhookQueue[0];
   webhookQueue.erase(webhookQueue.begin());
   
-  broadcastEvent("{\"event\":\"log\",\"msg\":\"🔄 Processing background webhook for flow: " + req.flowName + "\"}");
+  broadcastEvent("{\"event\":\"log\",\"msg\":\"🗘 Processing background webhook for flow: " + req.flowName + "\"}");
 
   File f = LittleFS.open("/flows/" + req.flowName + ".json", "r");
   cJSON* doc = cParseFile(f);
