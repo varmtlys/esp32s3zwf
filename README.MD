@@ -1,3 +1,6 @@
+> [!CAUTION]
+> **Warning**: The code in this branch is currently **UNTESTED** and may be unstable or behave unexpectedly. Use it at your own risk.
+
 # ESP32-S3 Zero WorkFlow
 
 **ESP32-S3 Zero WorkFlow** — a powerful and lightweight workflow automation platform inspired by n8n, but optimized to run directly on ESP32-S3 microcontrollers. It allows you to create, edit, and execute complex automation scenarios (flows) directly on the device through a user-friendly visual web interface.
