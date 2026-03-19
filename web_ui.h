@@ -142,6 +142,19 @@ font-size: 10px; line-height: 18px; text-align: center;
 border: 1px solid #30363d; z-index: 10;
 }
 .node-clone-btn:hover { background: var(--accent); color: white; border-color: var(--accent); }
+.node-rev-btn {
+position: absolute; top: 5px; right: 5px;
+width: 18px; height: 18px; background: #21262d;
+border-radius: 4px; cursor: pointer; color: #8b949e;
+font-size: 10px; line-height: 18px; text-align: center;
+border: 1px solid #30363d; z-index: 10;
+}
+.node-rev-btn:hover { background: var(--accent); color: white; border-color: var(--accent); }
+.node.reversed .port.in { left: auto; right: -6px; }
+.node.reversed .port.out { left: -6px; right: auto; }
+.node.reversed .port-label { left: auto; right: 10px; }
+.port.in { background: #f1e05a !important; }
+.port.out { background: #2ea043 !important; }
 .sidebar button { font-family: 'Segoe UI', system-ui, sans-serif; text-transform: none; letter-spacing: 0; font-size: 0.8rem; }
 .copyable-url {
 background: rgba(35, 134, 54, 0.1);
@@ -561,6 +574,14 @@ c.scrollTop = c.scrollHeight;
 function escapeHtml(s) {
 return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
+function reversePorts(e, id) {
+e.stopPropagation();
+const node = nodes.find(n => n.id === id);
+if (!node) return;
+node.reversed = !node.reversed;
+saveFlow();
+render();
+}
 function duplicateNode(e, id) {
 e.stopPropagation();
 const node = nodes.find(n => n.id === id);
@@ -633,7 +654,7 @@ document.querySelectorAll('.node').forEach(n => n.remove());
 svg.innerHTML = '';
 nodes.forEach(node => {
 const el = document.createElement('div');
-el.className = 'node';
+el.className = 'node' + (node.reversed ? ' reversed' : '');
 el.setAttribute('data-id', node.id);
 el.style.left = node.x + 'px';
 el.style.top = node.y + 'px';
@@ -660,6 +681,7 @@ el.innerHTML = `
 <div class="node-icon" style="background:${color}"></div>
 <span>${node.id}</span>
 </div>
+<div class="node-rev-btn" onmousedown="reversePorts(event, '${node.id}')" title="Reverse Ports">⇆</div>
 ${node.type !== 'start' ? `<div class="node-clone-btn" onmousedown="duplicateNode(event, '${node.id}')" title="Clone Node">⧉</div>` : ''}
 `;
 if (node.type === 'start') {
@@ -741,13 +763,17 @@ let yOffsetFrom = 14;
 if (from.type === 'condition' || from.type === 'loop' || from.type === 'loop_array') {
 yOffsetFrom = (conn.fromPort === 'true' || conn.fromPort === 'done') ? 14 : 33;
 }
-const x1 = from.x + 185, y1 = from.y + yOffsetFrom + 4 + 3; // adjusted center point based on node width and port dimension
-const x2 = to.x + 6 + 6, y2 = to.y + 14 + 4 + 3;
+const outX = from.reversed ? 12 : 185;
+const inX = to.reversed ? 185 : 12;
+const x1 = from.x + outX, y1 = from.y + yOffsetFrom + 4 + 3;
+const x2 = to.x + inX, y2 = to.y + 14 + 4 + 3;
 const cp = Math.max(Math.abs(x2 - x1) * 0.7, 50);
-path.setAttribute('d', `M ${x1} ${y1} C ${x1 + cp} ${y1}, ${x2 - cp} ${y2}, ${x2} ${y2}`);
+const cp1x = from.reversed ? x1 - cp : x1 + cp;
+const cp2x = to.reversed ? x2 + cp : x2 - cp;
+path.setAttribute('d', `M ${x1} ${y1} C ${cp1x} ${y1}, ${cp2x} ${y2}, ${x2} ${y2}`);
 svg.appendChild(path);
-// Add delete button at midpoint
-const mx = (x1 + x2) / 2;
+// Add delete button at midpoint of Bezier curve (t=0.5)
+const mx = 0.125 * x1 + 0.375 * cp1x + 0.375 * cp2x + 0.125 * x2;
 const my = (y1 + y2) / 2;
 const fobj = document.createElementNS('http://www.w3.org/2000/svg', 'foreignObject');
 fobj.setAttribute('x', mx - 8);
